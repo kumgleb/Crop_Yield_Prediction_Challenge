@@ -1,0 +1,10 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Folders
+data/
+notebooks/
+
+# Notebooks
+Operational.ipynb
+TestFiled.ipynb
