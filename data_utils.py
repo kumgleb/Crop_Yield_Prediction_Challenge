@@ -1,7 +1,9 @@
 import os
 import pandas as pd
 import numpy as np
+from typing import Dict
 
+import torch
 from torch.utils.data import Dataset
 
 
@@ -11,12 +13,12 @@ class BandsYieldDataset(Dataset):
     Supports averaging of bands by months and cloud filtration.
     """
     def __init__(self,
-                 csv_file_path,
-                 data_path,
-                 band_to_idx,
-                 s2_bands,
-                 clim_bands,
-                 cfg):
+                 csv_file_path: str,
+                 data_path: str,
+                 band_to_idx: Dict,
+                 s2_bands: list,
+                 clim_bands: list,
+                 cfg: Dict):
 
         self.base_df = pd.read_csv(csv_file_path)
         self.mode = 'train' if 'Quality' in self.base_df.columns else 'eval'
@@ -98,6 +100,9 @@ class BandsYieldDataset(Dataset):
         yields = self.base_df.iloc[idx]['Yield'] if self.mode == 'train' else 0
 
         # to tensors
+        s2_bands_grouped = torch.tensor(s2_bands_grouped, dtype=torch.float64)
+        clim_bands_grouped = torch.tensor(clim_bands_grouped, dtype=torch.float64)
+        yields = torch.tensor(yields, dtype=torch.float64)
 
         sample = {
             's2_bands': s2_bands_grouped,
