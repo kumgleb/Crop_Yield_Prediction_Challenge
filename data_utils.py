@@ -50,6 +50,8 @@ class BandsYieldDataset(Dataset):
         cloud_mask = np.sum(bands[idxs], axis=(1, 2))
         idx_to_drop = np.arange(0, 12)[cloud_mask > 1]
         filtred_idxs = [idx for idx in idxs_to_filter if idx not in idx_to_drop]
+        if len(filtred_idxs) == 0:
+          filtred_idxs = idxs
         return filtred_idxs
 
     def fill_s2_bands(self, bands, bands_to_fill):
