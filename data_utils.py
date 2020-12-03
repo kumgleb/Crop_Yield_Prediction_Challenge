@@ -110,3 +110,9 @@ class BandsYieldDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
+
+
+def get_band_to_idx(bands_txt_path):
+    band_names = [l.strip() for l in open(bands_txt_path, 'r').readlines()]
+    band_to_idx = {band: idx for idx, band in enumerate(band_names)}
+    return band_to_idx
