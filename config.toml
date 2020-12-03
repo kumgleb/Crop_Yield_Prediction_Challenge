@@ -1,9 +1,8 @@
 [data_loader]
 qualities = [2, 3]
 s2_avg_by = 6
-clim_avg_by = 3
 filter_clouds = true
-transform = none
+transform = []
 
 [bands_min_max]
 S2_B1 = [0, 4095]
