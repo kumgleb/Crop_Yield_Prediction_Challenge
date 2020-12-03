@@ -32,52 +32,52 @@ class BandsYieldDataset(Dataset):
         self.transform = cfg['data_loader']['transform']
         self.filter_clouds = cfg['data_loader']['filter_clouds']
 
-        self.m_groups_s2 = self.create_groups('S2', cfg)
-        self.m_groups_clim = self.create_groups('CLIM', cfg)
-
+        self.m_groups_s2 = self.create_s2_groups('S2', cfg)
         self.s2_out_dim = len(s2_bands) * len(self.m_groups_s2)
-        self.clim_out_dim = len(clim_bands) * len(self.m_groups_clim)
 
-    def create_groups(self, band_type, cfg):
-        if band_type == 'S2':
-            n_groups = 12 // cfg['data_loader']['s2_avg_by']
-        elif band_type == 'CLIM':
-            n_groups = 12 // cfg['data_loader']['clim_avg_by']
+    def create_s2_groups(self, band_type, cfg):
+        n_groups = 12 // cfg['data_loader']['s2_avg_by']
         group_size = 12 // n_groups
         groups = [list(range(i*group_size, (i + 1)*group_size)) for i in range(n_groups)]
         return groups
 
-    def filter_clouds(self, bands, idxs_to_filter):
+    def drop_bands_with_clouds(self, bands, idxs_to_filter):
         band = 'S2_QA60'
         band_months = [f'{m}_{band}' for m in range(12)]
         idxs = [self.band_to_idx[band] for band in band_months]
         cloud_mask = np.sum(bands[idxs], axis=(1, 2))
         idx_to_drop = np.arange(0, 12)[cloud_mask > 1]
-        filtred_idxs = [idx if idx not in idx_to_drop for idx in idxs_to_filter]
+        filtred_idxs = [idx for idx in idxs_to_filter if idx not in idx_to_drop]
         return filtred_idxs
 
-
-    def fill_bands(self, bands, bands_to_fill, bands_list, band_type):
-        if band_type == 'S2':
-            groups = self.m_groups_s2
-        elif band_type == 'CLIM':
-            groups = self.m_groups_clim
-
+    def fill_s2_bands(self, bands, bands_to_fill):
         i = 0
-        for band in bands_list:
+        for band in self.s2_bands:
             band_min, band_max = self.bands_range[band]
-            for group in groups:
+            for group in self.m_groups_s2 :
                 band_months = [f'{m}_{band}' for m in group]
                 idxs = [self.band_to_idx[band] for band in band_months]
                 # clouds filtration
-                if band_type == 'S2' and self.filter_clouds:
-                    idxs = self.filter_clouds(bands, idxs)
+                if self.filter_clouds:
+                    idxs = self.drop_bands_with_clouds(bands, idxs)
                 # mean over months
                 mean_bands = bands[idxs, :40, :40].mean(axis=0)
                 # scale to [0, 1]
                 mean_bands = (mean_bands - band_min) / (band_max - band_min)
                 bands_to_fill[i, :, :] = mean_bands.clip(0, 1)
                 i += 1
+        return bands_to_fill
+
+    def fill_clim_bands(self, bands, bands_to_fill):
+        for k, band in enumerate(self.clim_bands):
+          band_min, band_max = self.bands_range[band]
+          band_months = [f'{m}_{band}' for m in range(12)]
+          idxs = [self.band_to_idx[band] for band in band_months]
+          # mean over spatial dimension
+          retrieved_bands = np.mean(bands[idxs], axis=(1, 2))
+          # scale to [0, 1]
+          retrieved_bands = (retrieved_bands - band_min) / (band_max - band_min)
+          bands_to_fill[k, :] = retrieved_bands.clip(0, 1)
         return bands_to_fill
 
     def __len__(self):
@@ -90,13 +90,12 @@ class BandsYieldDataset(Dataset):
         bands = np.load(path_to_file)
 
         s2_bands_grouped = np.empty((self.s2_out_dim, 40, 40))
-        clim_bands_grouped = np.empty((self.clim_out_dim, 40, 40))
+        clim_bands_grouped = np.empty((len(self.clim_bands), 12))
 
-        s2_bands_grouped = self.fill_bands(bands, s2_bands_grouped, self.s2_bands, 'S2')
-        clim_bands_grouped = self.fill_bands(bands, clim_bands_grouped, self.clim_bands, 'CLIM')
+        s2_bands_grouped = self.fill_s2_bands(bands, s2_bands_grouped)
+        clim_bands_grouped = self.fill_clim_bands(bands, clim_bands_grouped)
 
         yields = self.base_df.iloc[idx]['Yield'] if self.mode == 'train' else 0
-
 
         # to tensors
 
