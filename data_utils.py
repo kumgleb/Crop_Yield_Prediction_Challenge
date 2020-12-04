@@ -102,9 +102,9 @@ class BandsYieldDataset(Dataset):
         yields = self.base_df.iloc[idx]['Yield'] if self.mode == 'train' else 0
 
         # to tensors
-        s2_bands_grouped = torch.tensor(s2_bands_grouped, dtype=torch.float64)
-        clim_bands_grouped = torch.tensor(clim_bands_grouped, dtype=torch.float64)
-        yields = torch.tensor(yields, dtype=torch.float64)
+        s2_bands_grouped = torch.tensor(s2_bands_grouped, dtype=torch.float32)
+        clim_bands_grouped = torch.tensor(clim_bands_grouped, dtype=torch.float32)
+        yields = torch.tensor(yields, dtype=torch.float32)
 
         sample = {
             's2_bands': s2_bands_grouped,

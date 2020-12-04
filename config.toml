@@ -3,6 +3,13 @@ qualities = [2, 3]
 s2_avg_by = 6
 filter_clouds = true
 transform = []
+batch_size = 32
+shuffle = true
+num_workers = 0
+
+[s2_model_params]
+n_head = 1028
+lr = 1e-3
 
 [bands_min_max]
 S2_B1 = [0, 4095]
