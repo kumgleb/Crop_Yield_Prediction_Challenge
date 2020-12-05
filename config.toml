@@ -13,7 +13,7 @@ n_head = 256
 
 [s2_train_params]
 lr = 1e-3
-n_epochs = 5
+n_epochs = 30
 plot_mode = true
 val_size = 0.2
 

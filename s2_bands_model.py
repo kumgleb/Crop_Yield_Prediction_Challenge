@@ -125,14 +125,14 @@ def train_monitor(losses_train, losses_val):
     fig, ax = plt.subplots(1, 2, figsize=(18, 6))
 
     iters = np.arange(len(losses_train))
-    ax[0].plot(iters, losses_train, linewidth=1.5, alpha=0.8,
+    ax[0].plot(iters, losses_train, linewidth=2, alpha=0.8,
                c='tab:blue', label='train loss')
-    ax[0].plot(iters, losses_val, linewidth=1.5, alpha=0.8,
+    ax[0].plot(iters, losses_val, linewidth=2, alpha=0.8,
                c='tab:red', label='validation loss')
 
-    ax[1].plot(iters, losses_train, linewidth=1.5, alpha=0.8,
+    ax[1].plot(iters, losses_train, linewidth=2, alpha=0.8,
                c='tab:blue', label='train loss')
-    ax[1].plot(iters, losses_val, linewidth=1.5, alpha=0.8,
+    ax[1].plot(iters, losses_val, linewidth=2, alpha=0.8,
                c='tab:red', label='validation loss')
     ax[1].set_yscale('log')
 
