@@ -1,6 +1,6 @@
 [data_loader]
 qualities = [2, 3]
-s2_avg_by = 6
+s2_avg_by = 4
 filter_clouds = true
 transform = []
 batch_size = 32
@@ -8,8 +8,13 @@ shuffle = true
 num_workers = 0
 
 [s2_model_params]
-n_head = 1028
+backbone = 'resnet18'
+n_head = 256
+
+[s2_train_params]
 lr = 1e-3
+n_epochs = 5
+plot_mode = true
 
 [bands_min_max]
 S2_B1 = [0, 4095]
