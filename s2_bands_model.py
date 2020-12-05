@@ -65,7 +65,7 @@ def forward(model, data, criterion, device):
     s2_bands = data['s2_bands'].to(device)
     yields = data['yield'].to(device)
     prediction = model(s2_bands).reshape(yields.shape)
-    loss = criterion(yields, prediction
+    loss = criterion(yields, prediction)
     return loss, prediction
 
 
