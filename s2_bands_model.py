@@ -72,12 +72,12 @@ def forward(model, data, criterion, device):
 def evaluate(model, dataloader, device, criterion):
     losses = []
     model.eval()
-    torch.set_grad_enabled(False)
-    val_iter = iter(dataloader)
-    for i in range(len(dataloader)):
-        data = next(val_iter)
-        loss, _ = forward(model, data, criterion, device)
-        losses.append(loss)
+    with torch.no_grad():
+      val_iter = iter(dataloader)
+      for i in range(len(dataloader)):
+          data = next(val_iter)
+          loss, _ = forward(model, data, criterion, device)
+          losses.append(loss.item())
     return np.mean(losses)
 
 
@@ -112,12 +112,13 @@ def train_model(model, train_dataloader, val_dataloader, device, optimizer, crit
         epoch_loss_train = train_epoch(model, train_dataloader, device, optimizer, criterion)
         epoch_loss_val = evaluate(model, val_dataloader, device, criterion)
 
-        losses_train.append(epoch_loss_train)
+        train_loss = np.mean(epoch_loss_train)
+        losses_train.append(train_loss)
         losses_val.append(epoch_loss_val)
-        progress_bar.set_description(f'train loss: {epoch_loss_train}, val loss: {epoch_loss_val}')
+        progress_bar.set_description(f'train loss: {train_loss:.4f}, val loss: {epoch_loss_val:.4f}')
         clear_output(True)
-    if cfg['s2_train_params']['plot_mode']:
-        train_monitor(losses_tran, losses_val)
+        if cfg['s2_train_params']['plot_mode']:
+            train_monitor(losses_train, losses_val)
 
 
 def train_monitor(losses_train, losses_val):
