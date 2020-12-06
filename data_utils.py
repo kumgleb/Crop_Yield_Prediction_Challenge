@@ -1,10 +1,12 @@
 import os
+import toml
 import pandas as pd
 import numpy as np
 from typing import Dict
 
 import torch
 from torch.utils.data import Dataset
+from torchvision.transforms import transforms
 
 
 class BandsYieldDataset(Dataset):
@@ -119,7 +121,47 @@ class BandsYieldDataset(Dataset):
         return sample
 
 
+class Normalize(object):
+    def __init__(self, mean, std):
+        self.normalizer = transforms.Normalize(mean, std)
+  
+    def __call__(self, sample):
+        s2_bands = sample['s2_bands']
+        sample['s2_bands'] = self.normalizer(s2_bands)
+        return sample
+
+
+class Resize(object):
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, list))
+        self.resizer = transforms.Resize(output_size)
+
+    def __call__(self, sample):
+        s2_bands = sample['s2_bands']
+        sample['s2_bands'] = self.resizer(s2_bands)
+        return sample
+
+
 def get_band_to_idx(bands_txt_path):
     band_names = [l.strip() for l in open(bands_txt_path, 'r').readlines()]
     band_to_idx = {band: idx for idx, band in enumerate(band_names)}
     return band_to_idx
+
+
+def get_s2_mean_std(s2_bands, cfg):
+    s2_stats = toml.load('s2_bands_stat.toml')
+    n_groups = 12 // cfg['data_loader']['s2_avg_by']
+    mean = np.array([[s2_stats['mean'][band]]*n_groups for band in s2_bands]).reshape(-1)
+    std = np.array([[s2_stats['std'][band]]*n_groups for band in s2_bands]).reshape(-1)
+    return mean, std
+
+
+def compose_transforms(s2_bands, cfg):
+    mean, std = get_s2_mean_std(s2_bands, cfg)
+    normalize = Normalize(mean, std)
+    resize = Resize(cfg['transforms']['s2_band_size'])
+    transforms_dict = {'normalize': normalize,
+                       'resize': resize}
+    dataloader_transforms = transforms.Compose(
+    [transforms_dict[transform] for transform in cfg['transforms']['s2_transforms']])
+    return dataloader_transforms
