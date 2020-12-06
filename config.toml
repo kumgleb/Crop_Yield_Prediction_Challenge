@@ -1,8 +1,11 @@
+[transforms]
+s2_transforms = ['normalize', 'resize']
+s2_band_size = [224, 224]
+
 [data_loader]
 qualities = [2, 3]
 s2_avg_by = 4
 filter_clouds = true
-transform = []
 batch_size = 32
 shuffle = true
 num_workers = 0

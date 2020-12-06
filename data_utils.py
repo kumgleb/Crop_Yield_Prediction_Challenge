@@ -18,6 +18,7 @@ class BandsYieldDataset(Dataset):
                  band_to_idx: Dict,
                  s2_bands: list,
                  clim_bands: list,
+                 transforms,
                  cfg: Dict):
 
         self.base_df = pd.read_csv(csv_file_path)
@@ -31,8 +32,8 @@ class BandsYieldDataset(Dataset):
         self.s2_bands = s2_bands
         self.clim_bands = clim_bands
         self.bands_range = cfg['bands_min_max']
-        self.transform = cfg['data_loader']['transform']
         self.filter_clouds = cfg['data_loader']['filter_clouds']
+        self.transforms = transforms
 
         self.m_groups_s2 = self.create_s2_groups('S2', cfg)
         self.s2_out_dim = len(s2_bands) * len(self.m_groups_s2)
@@ -112,8 +113,8 @@ class BandsYieldDataset(Dataset):
             'yield': yields
         }
 
-        if self.transform:
-            sample = self.transform(sample)
+        if self.transforms:
+            sample = self.transforms(sample)
 
         return sample
 
