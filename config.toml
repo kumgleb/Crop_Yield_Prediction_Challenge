@@ -1,6 +1,13 @@
 [transforms]
-s2_transforms = ['normalize', 'resize']
+s2_transforms = ['resize']
 s2_band_size = [224, 224]
+
+[augmentations]
+aff_pad = 32
+degrees = 10
+p_aug = 0.5
+p_flips = 0.3
+p_affine = 0.2
 
 [data_loader]
 qualities = [2, 3]

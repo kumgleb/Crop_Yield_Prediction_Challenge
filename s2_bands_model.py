@@ -6,7 +6,7 @@ from IPython.display import clear_output
 
 import torch
 from torch import nn, optim, Tensor
-from torchvision.models.resnet import resnet50, resnet18
+from torchvision.models.resnet import resnet18, resnet34, resnet50, resnet101 
 
 
 class S2BandModel(nn.Module):
@@ -18,10 +18,10 @@ class S2BandModel(nn.Module):
 
         num_in_channels = 12 // cfg['data_loader']['s2_avg_by'] * len(bands_list)
 
-        if cfg['s2_model_params']['backbone'] == 'resnet18':
+        if cfg['s2_model_params']['backbone'] in ['resnet18', 'resnet34']:
             self.backbone = resnet18(pretrained=True)
             backbone_out_dim = 512
-        elif cfg['s2_model_params']['backbone'] == 'resnet50':
+        elif cfg['s2_model_params']['backbone'] in ['resnet50', 'resnet101']:
             self.backbone = resnet50(pretrained=True)
             backbone_out_dim = 2048
         else:
