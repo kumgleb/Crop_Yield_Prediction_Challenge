@@ -4,7 +4,11 @@ __pycache__/
 # Folders
 data/
 notebooks/
+submissions/
 
 # Notebooks
 Operational.ipynb
 TestFiled.ipynb
+
+# Files
+log.gsheet
