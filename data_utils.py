@@ -21,6 +21,7 @@ class BandsYieldDataset(Dataset):
                  s2_bands: list,
                  clim_bands: list,
                  transforms,
+                 augmentations,
                  cfg: Dict):
 
         self.base_df = pd.read_csv(csv_file_path)
@@ -36,6 +37,10 @@ class BandsYieldDataset(Dataset):
         self.bands_range = cfg['bands_min_max']
         self.filter_clouds = cfg['data_loader']['filter_clouds']
         self.transforms = transforms
+        self.augmentations = augmentations
+        self.p_aug = cfg['augmentations']['p_aug']
+        self.p_flips = cfg['augmentations']['p_flips']
+        self.p_affine = cfg['augmentations']['p_affine']
 
         self.m_groups_s2 = self.create_s2_groups('S2', cfg)
         self.s2_out_dim = len(s2_bands) * len(self.m_groups_s2)
@@ -87,6 +92,19 @@ class BandsYieldDataset(Dataset):
           bands_to_fill[k, :] = retrieved_bands.clip(0, 1)
         return bands_to_fill
 
+    def apply_augmentations(self, sample):
+        rand_v =  np.random.rand(3)
+        if rand_v[0] < self.p_aug:
+          return sample
+        if self.p_flips < rand_v[1] < self.p_flips + self.p_aug:
+          sample = self.augmentations['flips'](sample)
+          return sample
+        if self.p_flips + self.p_aug < rand_v[2] < 1:
+          sample = self.augmentations['affine'](sample)
+          return sample
+        else:
+          return sample
+
     def __len__(self):
         return len(self.base_df)
 
@@ -117,6 +135,8 @@ class BandsYieldDataset(Dataset):
 
         if self.transforms:
             sample = self.transforms(sample)
+            if self.augmentations and self.mode == 'train':
+              sample = self.apply_augmentations(sample)
 
         return sample
 
@@ -142,6 +162,35 @@ class Resize(object):
         return sample
 
 
+class Flip(object):
+    def __init__(self):
+        self.h_flip = transforms.RandomHorizontalFlip(p=1)
+        self.v_flip = transforms.RandomVerticalFlip(p=1)
+
+    def __call__(self, sample):
+        s2_bands = sample['s2_bands']
+        if np.random.rand(1) < 0.5:
+          sample['s2_bands'] = self.h_flip(s2_bands)
+        else:
+          sample['s2_bands'] = self.v_flip(s2_bands)
+        return sample
+
+
+class Affine(object):
+    def __init__(self, cfg):
+      output_size = cfg['transforms']['s2_band_size'][0] + cfg['augmentations']['aff_pad']
+      crop_size = cfg['transforms']['s2_band_size']
+      self.scale = transforms.Resize((output_size, output_size))
+      self.rand_rot = transforms.RandomAffine(degrees=cfg['augmentations']['degrees'])
+      self.rand_crop = transforms.RandomCrop(crop_size, padding=None)
+
+    def __call__(self, sample):
+      sample = self.scale(sample)
+      sample = self.rand_rot(sample)
+      sample = self.rand_crop(sample)
+      return sample
+
+
 def get_band_to_idx(bands_txt_path):
     band_names = [l.strip() for l in open(bands_txt_path, 'r').readlines()]
     band_to_idx = {band: idx for idx, band in enumerate(band_names)}
@@ -165,3 +214,11 @@ def compose_transforms(s2_bands, cfg):
     dataloader_transforms = transforms.Compose(
     [transforms_dict[transform] for transform in cfg['transforms']['s2_transforms']])
     return dataloader_transforms
+
+
+def create_augmentations(cfg):
+    flip = Flip()
+    affine = Affine(cfg)
+    augmentations = {'flips': flip,
+                     'affine': affine}
+    return augmentations
