@@ -6,8 +6,9 @@ s2_band_size = [224, 224]
 aff_pad = 32
 degrees = 10
 p_aug = 0.5
-p_flips = 0.3
-p_affine = 0.2
+p_flip = 0.2
+p_rotate = 0.1
+p_crop = 0.2
 
 [data_loader]
 qualities = [2, 3]
@@ -23,7 +24,7 @@ n_head = 256
 
 [s2_train_params]
 lr = 1e-3
-n_epochs = 30
+n_epochs = 100
 plot_mode = true
 val_size = 0.2
 
