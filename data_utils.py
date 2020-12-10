@@ -42,11 +42,15 @@ class BandsYieldDataset(Dataset):
         self.p_flp = cfg['augmentations']['p_flip']
         self.p_rot = cfg['augmentations']['p_rotate']
         self.p_crp = cfg['augmentations']['p_crop']
+        self.indexes = cfg['data_loader']['indexes']
 
-        self.m_groups_s2 = self.create_s2_groups('S2', cfg)
+        self.m_groups_s2 = self.create_s2_groups(cfg)
         self.s2_out_dim = len(s2_bands) * len(self.m_groups_s2)
+        if self.indexes:
+          n_grps = len(self.m_groups_s2 )
+          self.band_to_idx_range = {band: (k*n_grps, (k+1)*n_grps) for k, band in enumerate(s2_bands)}
 
-    def create_s2_groups(self, band_type, cfg):
+    def create_s2_groups(self, cfg):
         n_groups = 12 // cfg['data_loader']['s2_avg_by']
         group_size = 12 // n_groups
         groups = [list(range(i*group_size, (i + 1)*group_size)) for i in range(n_groups)]
@@ -102,6 +106,31 @@ class BandsYieldDataset(Dataset):
           sample = self.augmentations[aug](sample)
           return sample
 
+    def add_indexes(self, s2_bands):
+        idx_dim = len(self.m_groups_s2)
+        out_dim = len(self.indexes) * idx_dim
+        indexes_out = np.empty((out_dim, 40, 40))
+        for k, index in enumerate(self.indexes):
+          if index == 'NDVI':
+            band_8 = s2_bands[self.band_to_idx_range['S2_B8'][0]: self.band_to_idx_range['S2_B8'][1]]
+            band_4 = s2_bands[self.band_to_idx_range['S2_B4'][0]: self.band_to_idx_range['S2_B4'][1]]
+            NDVI = (band_8 - band_4) / (band_8 + band_4)
+            indexes_out[k*idx_dim: (k + 1)*idx_dim] = NDVI
+          elif index == 'NDVIa':
+            band_8a = s2_bands[self.band_to_idx_range['S2_B8A'][0]: self.band_to_idx_range['S2_B8A'][1]]
+            band_4 = s2_bands[self.band_to_idx_range['S2_B4'][0]: self.band_to_idx_range['S2_B4'][1]]
+            NDVIa = (band_8a - band_4) / (band_8a + band_4)
+            indexes_out[k*idx_dim: (k + 1)*idx_dim] = NDVIa
+          elif index == 'NDWI':
+            band_8a = s2_bands[self.band_to_idx_range['S2_B8A'][0]: self.band_to_idx_range['S2_B8A'][1]]
+            band_11 = s2_bands[self.band_to_idx_range['S2_B11'][0]: self.band_to_idx_range['S2_B11'][1]]
+            NDWI = (band_8a - band_11) / (band_8a + band_11)
+            indexes_out[k*idx_dim: (k + 1)*idx_dim] = NDWI
+          else:
+            raise NotImplementedError('Such index not supported, valid indexes are NDVI, NDVIa, NDWI.')
+        s2_bands = np.concatenate([s2_bands, indexes_out], axis=0)
+        return s2_bands
+
     def __len__(self):
         return len(self.base_df)
 
@@ -116,6 +145,9 @@ class BandsYieldDataset(Dataset):
 
         s2_bands_grouped = self.fill_s2_bands(bands, s2_bands_grouped)
         clim_bands_grouped = self.fill_clim_bands(bands, clim_bands_grouped)
+
+        if self.indexes:
+          s2_bands_grouped = self.add_indexes(s2_bands_grouped)
 
         yields = self.base_df.iloc[idx]['Yield'] if self.mode == 'train' else 0
 
@@ -136,7 +168,7 @@ class BandsYieldDataset(Dataset):
               sample = self.apply_augmentations(sample)
 
         return sample
-
+        
 
 class Normalize(object):
     def __init__(self, mean, std):
