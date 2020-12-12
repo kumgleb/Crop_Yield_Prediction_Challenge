@@ -15,8 +15,10 @@ class S2BandModel(nn.Module):
     """
     def __init__(self, bands_list: list, cfg: Dict):
         super().__init__()
-
-        num_in_channels = 12 // cfg['data_loader']['s2_avg_by'] * len(bands_list)
+        
+        n_bands = 12 // cfg['data_loader']['s2_avg_by'] * len(bands_list) 
+        n_indexes = 12 // cfg['data_loader']['s2_avg_by'] * len(cfg['data_loader']['indexes']) 
+        num_in_channels = n_bands + n_indexes
 
         if cfg['s2_model_params']['backbone'] in ['resnet18', 'resnet34']:
             self.backbone = resnet18(pretrained=True)
