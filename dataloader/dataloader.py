@@ -39,8 +39,10 @@ class BandsYieldDataset(Dataset):
         self.augmentations = augmentations
         self.p_aug = cfg['augmentations']['p_aug']
         self.p_flp = cfg['augmentations']['p_flip']
-        self.p_rot = cfg['augmentations']['p_rotate']
         self.p_crp = cfg['augmentations']['p_crop']
+        self.p_rot = cfg['augmentations']['p_rotate']
+        self.p_cto = cfg['augmentations']['p_cutout']
+        self.p_mix = cfg['augmentations']['p_mixup']
         self.indexes = cfg['data_loader']['indexes']
 
         self.m_groups_s2 = self.create_s2_groups(cfg)
@@ -97,8 +99,8 @@ class BandsYieldDataset(Dataset):
         return bands_to_fill
 
     def apply_augmentations(self, sample):
-        aug = np.random.choice(['none', 'flip', 'rotate', 'crop'],
-                               p=[self.p_aug, self.p_flp, self.p_rot, self.p_crp])
+        aug = np.random.choice(['none', 'flip', 'crop', 'rotate', 'cutout', 'mixup'],
+                               p=[self.p_aug, self.p_flp, self.p_crp, self.p_rot, self.p_cto, self.p_mix])
         if aug == 'none':
             return sample
         else:

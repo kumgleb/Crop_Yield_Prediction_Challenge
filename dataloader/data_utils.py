@@ -3,7 +3,7 @@ import numpy as np
 
 from torchvision.transforms import transforms
 from .transforms import Resize, Normalize
-from .augmentations import Rotate, Crop, Flip
+from .augmentations import Rotate, Crop, Flip, MixUp, CutOut
 
 
 def get_band_to_idx(bands_txt_path):
@@ -32,11 +32,18 @@ def compose_transforms(s2_bands, cfg):
 
 
 def create_augmentations(cfg):
-    assert (cfg['augmentations']['p_aug'] + cfg['augmentations']['p_flip'] +
-            + cfg['augmentations']['p_rotate'] + cfg['augmentations'][
-                'p_crop']) == 1, 'Probabilities should sum up to 1.'
+    assert np.isclose(
+        cfg['augmentations']['p_aug'] +
+        cfg['augmentations']['p_flip'] +
+        cfg['augmentations']['p_crop'] +
+        cfg['augmentations']['p_rotate'] +
+        cfg['augmentations']['p_cutout'] +
+        cfg['augmentations']['p_mixup'], 1), 'Probabilities should sum up to 1.'
 
     augmentations = {'flip': Flip(),
                      'rotate': Rotate(cfg),
-                     'crop': Crop(cfg)}
+                     'crop': Crop(cfg),
+                     'cutout': CutOut(cfg),
+                     'mixup': MixUp(cfg)}
+
     return augmentations
