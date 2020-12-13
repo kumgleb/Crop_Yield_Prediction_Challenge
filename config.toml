@@ -3,12 +3,12 @@ s2_transforms = ['resize']
 s2_band_size = [224, 224]
 
 [augmentations]
-p_aug = 0.4
-p_flip = 0.3
-p_crop = 0.2
-p_rotate = 0.1
+p_aug = 1
+p_flip = 0
+p_crop = 0
+p_rotate = 0
 p_cutout = 0
-p_mixup = 0
+p_mixup = 0.5
 
   [augmentations.rotate]
   pad = 32
@@ -18,17 +18,17 @@ p_mixup = 0
   pad = 32
 
   [augmentations.cutout]
-  n_cuts_max = 10
-  cut_size = 16
+  n_cuts_max = 2
+  cut_size = 64
 
-  [augmentations.mixin]
+  [augmentations.mixup]
   alpha = 0.4
   
 [data_loader]
 qualities = [2, 3]
 s2_avg_by = 4
 filter_clouds = true
-batch_size = 64
+batch_size = 16
 shuffle = true
 num_workers = 0
 indexes = ['NDVI', 'NDWI']
@@ -38,8 +38,8 @@ backbone = 'resnet18'
 n_head = 256
 
 [s2_train_params]
-lr = 1e-3
-n_epochs = 30
+lr = 0.5e-3
+n_epochs = 50
 plot_mode = true
 val_size = 0.2
 

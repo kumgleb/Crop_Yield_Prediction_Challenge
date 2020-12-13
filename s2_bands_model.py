@@ -4,6 +4,8 @@ from tqdm import tqdm
 from typing import Dict
 from IPython.display import clear_output
 
+from dataloader.augmentations import MixUp
+
 import torch
 from torch import nn, optim, Tensor
 from torchvision.models.resnet import resnet18, resnet34, resnet50, resnet101 
@@ -83,12 +85,16 @@ def evaluate(model, dataloader, device, criterion):
     return np.mean(losses)
 
 
-def train_epoch(model, dataloader, device, optimizer, criterion):
+def train_epoch(model, dataloader, device, optimizer, criterion, cfg):
+    p_mixup = cfg['augmentations']['p_mixup']
     losses = []
     progress_bar = tqdm(range(len(dataloader)))
     dataloader_iter = iter(dataloader)
     for _ in progress_bar:
         data = next(dataloader_iter)
+
+        if p_mixup > 0 and np.random.rand() < p_mixup:
+          data = MixUp(cfg)(data)
 
         model.train()
         torch.set_grad_enabled(True)
@@ -111,7 +117,7 @@ def train_model(model, train_dataloader, val_dataloader, device, optimizer, crit
 
     progress_bar = tqdm(range(n_epochs))
     for _ in progress_bar:
-        epoch_loss_train = train_epoch(model, train_dataloader, device, optimizer, criterion)
+        epoch_loss_train = train_epoch(model, train_dataloader, device, optimizer, criterion, cfg)
         epoch_loss_val = evaluate(model, val_dataloader, device, criterion)
 
         train_loss = np.mean(epoch_loss_train)

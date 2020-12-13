@@ -37,13 +37,11 @@ def create_augmentations(cfg):
         cfg['augmentations']['p_flip'] +
         cfg['augmentations']['p_crop'] +
         cfg['augmentations']['p_rotate'] +
-        cfg['augmentations']['p_cutout'] +
-        cfg['augmentations']['p_mixup'], 1), 'Probabilities should sum up to 1.'
+        cfg['augmentations']['p_cutout'], 1), 'Probabilities should sum up to 1.'
 
     augmentations = {'flip': Flip(),
                      'rotate': Rotate(cfg),
                      'crop': Crop(cfg),
-                     'cutout': CutOut(cfg),
-                     'mixup': MixUp(cfg)}
+                     'cutout': CutOut(cfg)}
 
     return augmentations

@@ -71,13 +71,13 @@ class CutOut(object):
 
 class MixUp(object):
     def __init__(self, cfg):
-        self.alpha = cfg['augmentations']['mixin']['alpha']
+        self.alpha = cfg['augmentations']['mixup']['alpha']
 
     def __call__(self, sample):
         s2_bands = sample['s2_bands']
         yields = sample['yield']
 
-        alpha = np.rand.beta(self.alpha, self.alpha)
+        alpha = np.random.beta(self.alpha, self.alpha)
         shuffled_idxs = np.random.permutation(np.arange(s2_bands.shape[0]))
 
         s2_mixup = alpha * s2_bands + (1 - alpha) * s2_bands[shuffled_idxs]
