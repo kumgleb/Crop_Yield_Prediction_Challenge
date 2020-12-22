@@ -1,0 +1,63 @@
+[transforms]
+s2_transforms = []
+s2_band_size = [40, 40]
+
+[data_loader]
+qualities = [1, 2, 3]
+s2_avg_by = 1
+filter_clouds = false
+batch_size = 16
+shuffle = true
+num_workers = 0
+indexes = ['NDVI', 'NDWI']
+
+[augmentations]
+p_aug = 0.5
+p_flip = 0.3
+p_crop = 0.1
+p_rotate = 0
+p_cutout = 0.1
+p_mixup = 0.5
+
+  [augmentations.rotate]
+  pad = 5
+  degrees = 10
+
+  [augmentations.crop]
+  pad = 10
+
+  [augmentations.cutout]
+  n_cuts_max = 3
+  cut_size = 5
+
+  [augmentations.mixup]
+  alpha = 0.4
+
+[bands_min_max]
+S2_B1 = [0, 4095]
+S2_B2 = [0, 4095]
+S2_B3 = [0, 4095]
+S2_B4 = [0, 4095]
+S2_B5 = [0, 4095]
+S2_B6 = [0, 4095]
+S2_B7 = [0, 4095]
+S2_B8 = [0, 4095]
+S2_B8A = [0, 4095]
+S2_B9 = [0, 4095]
+S2_B10 = [0, 4095]
+S2_B11 = [0, 4095]
+S2_B12 = [0, 4095]
+CLIM_aet = [0, 3140]
+CLIM_def = [0, 4548]
+CLIM_pdsi = [-4317, 3418]
+CLIM_pet = [0, 4548]
+CLIM_pr = [0, 7245]
+CLIM_ro = [0, 12560]
+CLIM_soil = [0, 8882]
+CLIM_srad = [0, 5477]
+CLIM_swe = [0, 32767]
+CLIM_tmmn = [-770, 387]
+CLIM_tmmx = [-670, 576]
+CLIM_vap = [0, 14749]
+CLIM_vpd = [0, 1113]
+CLIM_vs = [0, 2923]
