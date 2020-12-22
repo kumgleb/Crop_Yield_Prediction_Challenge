@@ -35,8 +35,8 @@ def evaluate(model, dataloader, device, criterion):
     return np.mean(losses)
 
 
-def train_epoch(model, dataloader, device, optimizer, criterion, cfg):
-    p_mixup = cfg['augmentations']['p_mixup']
+def train_epoch(model, dataloader, device, optimizer, criterion, cfg_data):
+    p_mixup = dataloader.dataset.p_mup
     losses = []
     progress_bar = tqdm(range(len(dataloader)))
     dataloader_iter = iter(dataloader)
@@ -44,7 +44,7 @@ def train_epoch(model, dataloader, device, optimizer, criterion, cfg):
         data = next(dataloader_iter)
 
         if p_mixup > 0 and np.random.rand() < p_mixup:
-            data = MixUp(cfg)(data)
+            data = MixUp(cfg_data)(data)
 
         model.train()
         torch.set_grad_enabled(True)
@@ -60,15 +60,15 @@ def train_epoch(model, dataloader, device, optimizer, criterion, cfg):
     return losses
 
 
-def train_model(model, train_dataloader, val_dataloader, device, optimizer, criterion, cfg):
+def train_model(model, train_dataloader, val_dataloader, device, optimizer, criterion, cfg_data, cfg_model):
     losses_train, losses_train_mean = [], []
     losses_val, losses_val_mean = [], []
     best_val_loss = 1e6
-    n_epochs = cfg['s2_train_params']['n_epochs']
+    n_epochs = cfg_model['train_params']['n_epochs']
 
     progress_bar = tqdm(range(n_epochs))
     for _ in progress_bar:
-        epoch_loss_train = train_epoch(model, train_dataloader, device, optimizer, criterion, cfg)
+        epoch_loss_train = train_epoch(model, train_dataloader, device, optimizer, criterion, cfg_data)
         epoch_loss_val = evaluate(model, val_dataloader, device, criterion)
 
         train_loss = np.mean(epoch_loss_train)
@@ -78,12 +78,12 @@ def train_model(model, train_dataloader, val_dataloader, device, optimizer, crit
         losses_val_mean.append(np.mean(losses_val))
         progress_bar.set_description(f'train loss: {train_loss:.4f}, val loss: {epoch_loss_val:.4f}')
         clear_output(True)
-        if cfg['s2_train_params']['plot_mode']:
+        if cfg_model['train_params']['plot_mode']:
             train_monitor(losses_train, losses_train_mean, losses_val, losses_val_mean)
         
-        if cfg['s2_train_params']['save_best_val'] and epoch_loss_val < best_val_loss:
+        if cfg_model['train_params']['save_best_val'] and epoch_loss_val < best_val_loss:
           best_val_loss = epoch_loss_val
-          checkpoint_path = cfg['s2_train_params']['checkpoint_path']
+          checkpoint_path = cfg_model['train_params']['checkpoint_path']
           torch.save(model.state_dict(),
             f'{checkpoint_path}/{model.__class__.__name__}_{epoch_loss_val:.3f}')
 

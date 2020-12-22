@@ -12,10 +12,14 @@ month_to_proc = 11
 n_head = 256
 p_dropout = 0
 
-[s2_model_params]
+[s2_model]
 backbone = 'resnet18'
 n_head = 256
 p_dropout = 0.2
+
+[BandsCNN]
+n_head = 128
+p_dropout = 0
 
 [train_params]
 lr = 0.1e-3
@@ -23,4 +27,4 @@ n_epochs = 200
 plot_mode = true
 val_size = 0.2
 save_best_val = false
-checkpoint_path = '/gdrive/My Drive/Colab Notebooks/Competitions/CGIAR Crop Yield Prediction Challenge/models_weights'
+checkpoint_path = './models_weights'

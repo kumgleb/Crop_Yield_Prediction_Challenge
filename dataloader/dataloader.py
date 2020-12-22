@@ -42,6 +42,7 @@ class BandsYieldDataset(Dataset):
         self.p_crp = cfg['augmentations']['p_crop']
         self.p_rot = cfg['augmentations']['p_rotate']
         self.p_cto = cfg['augmentations']['p_cutout']
+        self.p_mup = cfg['augmentations']['p_mixup']
         self.indexes = cfg['data_loader']['indexes']
 
         self.m_groups_s2 = self.create_s2_groups(cfg)

@@ -10,11 +10,11 @@ class S2BandModel(nn.Module):
     Model for yield prediction based of S2 Santinel bands data.
     """
 
-    def __init__(self, bands_list: list, cfg_df: Dict, cfg_model: Dict):
+    def __init__(self, bands_list: list, cfg_dl: Dict, cfg_model: Dict):
         super().__init__()
 
         n_bands = 12 // cfg_dl['data_loader']['s2_avg_by'] * len(bands_list)
-        n_indexes = 12 // cfg_df['data_loader']['s2_avg_by'] * len(cfg_dl['data_loader']['indexes'])
+        n_indexes = 12 // cfg_dl['data_loader']['s2_avg_by'] * len(cfg_dl['data_loader']['indexes'])
         num_in_channels = n_bands + n_indexes
 
         if cfg_model['s2_model']['backbone'] in ['resnet18', 'resnet34']:
@@ -62,7 +62,7 @@ class S2BandModel(nn.Module):
 
 
 class BandCNN(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self):
         super().__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
@@ -92,10 +92,10 @@ class BandCNN(nn.Module):
 
 
 class BandsCNN(nn.Module):
-    def __init__(self, cfg_dl, device):
+    def __init__(self, cfg_dl: Dict, cfg_model: Dict, device):
         super().__init__()
         n_bands = 13 + len(cfg_dl['data_loader']['indexes'])
-        self.band_weighters = [BandCNN(cfg).to(device) for _ in range(n_bands)]
+        self.band_weighters = [BandCNN().to(device) for _ in range(n_bands)]
         self.layer1 = nn.Sequential(
             nn.Conv2d(n_bands, 32, (3, 3), (1, 1), (1, 1)),
             nn.ReLU(),
@@ -112,9 +112,10 @@ class BandsCNN(nn.Module):
         )
 
         self.head = nn.Sequential(
-            nn.Linear(256, 128),
+            nn.Linear(256, cfg_model['BandsCNN']['n_head']),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Dropout(cfg_model['BandsCNN']['p_dropout']),
+            nn.Linear(cfg_model['BandsCNN']['n_head'], 1)
         )
 
     def forward(self, x):
@@ -133,7 +134,7 @@ class HybridBandsModel(nn.Module):
     def __init__(self, cfg_dl, cfg_model, device):
         super().__init__()
         n_bands = 13 + len(cfg_dl['data_loader']['indexes'])
-        self.band_weighters = [BandCNN(cfg_dl).to(device) for _ in range(n_bands)]
+        self.band_weighters = [BandCNN().to(device) for _ in range(n_bands)]
 
         self.backbone = resnet18(pretrained=True)
         backbone_out_dim = 512
@@ -159,104 +160,6 @@ class HybridBandsModel(nn.Module):
         wb = torch.cat(wb, dim=1)
 
         x = self.backbone.conv1(wb)
-        x = self.backbone.bn1(x)
-        x = self.backbone.relu(x)
-        x = self.backbone.maxpool(x)
-
-        x = self.backbone.layer1(x)
-        x = self.backbone.layer2(x)
-        x = self.backbone.layer3(x)
-        x = self.backbone.layer4(x)
-
-        x = self.backbone.avgpool(x)
-        x = torch.flatten(x, 1)
-
-        logits = self.head(x)
-
-        return logits
-
-
-class AutoEncoder(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.encoder = nn.Sequential(
-            nn.Conv2d(12, 12, (3, 3), (1, 1), (1, 1)),
-            nn.ReLU(),
-            nn.Conv2d(12, 24, (3, 3), (2, 2), (1, 1)),
-            nn.ReLU(),
-            nn.AvgPool2d((2, 2)),
-            nn.Conv2d(24, 48, (2, 2), (1, 1), (1, 1)),
-            nn.ReLU(),
-            nn.AvgPool2d((2, 2)),
-            nn.Conv2d(48, 96, (2, 2), (1, 1), (1, 1)),
-            nn.ReLU(),
-            nn.AvgPool2d((2, 2)),
-            nn.Conv2d(96, 128, (2, 2), (1, 1), (1, 1)),
-            nn.ReLU(),
-            nn.AvgPool2d((2, 2)),
-            nn.Conv2d(128, 256, (2, 2), (1, 1), (1, 1)),
-            nn.ReLU()
-        )
-
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(256, 128, (2, 2), (2, 2), (0, 0)),
-            nn.LeakyReLU(),
-            nn.ConvTranspose2d(128, 64, (3, 3), (2, 2), (0, 0)),
-            nn.LeakyReLU(),
-            nn.ConvTranspose2d(64, 32, (3, 3), (2, 2), (0, 0)),
-            nn.LeakyReLU(),
-            nn.ConvTranspose2d(32, 16, (3, 3), (2, 2), (0, 0)),
-            nn.LeakyReLU(),
-            nn.ConvTranspose2d(16, 8, (4, 4), (2, 2), (0, 0)),
-            nn.LeakyReLU(),
-            nn.ConvTranspose2d(8, 4, (4, 4), (2, 2), (1, 1)),
-            nn.Tanh(),
-        )
-
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
-
-
-class AutoS2BandNet(nn.Module):
-    """
-    Model for yield prediction based of S2 Santinel bands data.
-    """
-
-    def __init__(self, cfg_dl: Dict, cfg_model: Dict, device: str):
-        super().__init__()
-
-        n_bands = 13 + len(cfg_dl['data_loader']['indexes'])
-        num_in_channels = 4 * n_bands
-
-        self.autoencoder = AutoEncoder().to(device)
-        self.backbone = resnet18(pretrained=True)
-        backbone_out_dim = 512
-
-        self.backbone.conv1 = nn.Conv2d(
-            num_in_channels,
-            self.backbone.conv1.out_channels,
-            kernel_size=self.backbone.conv1.kernel_size,
-            stride=self.backbone.conv1.stride,
-            padding=self.backbone.conv1.padding,
-            bias=False
-        )
-
-        self.head = nn.Sequential(
-            nn.Linear(backbone_out_dim, cfg_model['s2_model']['n_head']),
-            nn.ReLU(),
-            nn.Dropout(cfg_model['s2_model']['p_dropout']),
-            nn.Linear(cfg_model['s2_model']['n_head'], 1)
-        )
-
-    def forward(self, x):
-        bands = torch.split(x, 12, dim=1)
-        aue_bands = [self.autoencoder(band) for band in bands]
-        aue_bands = torch.cat(aue_bands, dim=1)
-
-        x = self.backbone.conv1(aue_bands)
         x = self.backbone.bn1(x)
         x = self.backbone.relu(x)
         x = self.backbone.maxpool(x)
