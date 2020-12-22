@@ -5,6 +5,7 @@ __pycache__/
 data/
 notebooks/
 submissions/
+models_weights/
 
 # Notebooks
 Operational.ipynb

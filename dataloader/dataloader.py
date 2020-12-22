@@ -94,7 +94,7 @@ class BandsYieldDataset(Dataset):
             retrieved_bands = np.mean(bands[idxs], axis=(1, 2))
             # scale to [0, 1]
             retrieved_bands = (retrieved_bands - band_min) / (band_max - band_min)
-            bands_to_fill[k, :] = retrieved_bands.clip(0, 1)
+            bands_to_fill[:, k] = retrieved_bands.clip(0, 1)
         return bands_to_fill
 
     def apply_augmentations(self, sample):
@@ -141,7 +141,7 @@ class BandsYieldDataset(Dataset):
         bands = np.load(path_to_file)
 
         s2_bands_grouped = np.empty((self.s2_out_dim, 40, 40))
-        clim_bands_grouped = np.empty((len(self.clim_bands), 12))
+        clim_bands_grouped = np.empty((12, len(self.clim_bands)))
 
         s2_bands_grouped = self.fill_s2_bands(bands, s2_bands_grouped)
         clim_bands_grouped = self.fill_clim_bands(bands, clim_bands_grouped)
