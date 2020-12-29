@@ -20,7 +20,8 @@ def get_s2_mean_std(s2_bands, cfg):
     return mean, std
 
 
-def compose_transforms(s2_bands, cfg):
+def compose_transforms(cfg):
+    s2_bands = cfg['data_loader']['s2_bands']
     mean, std = get_s2_mean_std(s2_bands, cfg)
     normalize = Normalize(mean, std)
     resize = Resize(cfg['transforms']['s2_band_size'])
