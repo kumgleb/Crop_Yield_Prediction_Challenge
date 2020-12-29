@@ -203,6 +203,7 @@ class ShallowAutoEncoder(nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
+        x = torch.nn.functional.interpolate(x, (224, 224))
         return x
 
 
