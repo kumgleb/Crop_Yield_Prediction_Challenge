@@ -1,28 +1,26 @@
-[ClimNet]
-input_dim = 13
-hidden_dim = 512
-head_dim = 256
-lstm_num_layers = 1
-lstm_dropout = 0
-head_dropout = 0
-bi = false
-month_to_proc = 11
+[CropNet]
+n_head = 512
+dropout = 0.2
 
-[S2ClimNet]
-n_head = 256
-p_dropout = 0
+  [CropNet.s2_cnn]
+  bn_first = false
 
-[s2_model]
-backbone = 'resnet18'
-n_head = 256
-p_dropout = 0.2
+  [CropNet.s2_lstm]
+  hidden_size = 512
+  n_layers = 1
+  dropout = 0
+  bi = false
+  n_head = 256
 
-[BandsCNN]
-n_head = 128
-p_dropout = 0
+  [CropNet.clim_sltm]
+  hidden_size = 512
+  n_layers = 1
+  dropout = 0
+  bi = false
+  n_head = 256
 
 [train_params]
-lr = 0.1e-3
+lr = 3e-4
 n_epochs = 200
 plot_mode = true
 val_size = 0.2
