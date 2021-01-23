@@ -19,6 +19,7 @@ class S2CNN(nn.Module):
                            len(cfg_data['data_loader']['indexes']))
 
         self.bn_first = cfg_model['CropNet']['s2_cnn']['bn_first']
+        self.attention = cfg_model['CropNet']['s2_cnn']['attention']
         self.backbone = resnet18(pretrained=True)
         self.backbone.conv1 = nn.Conv2d(
             num_in_channels,
@@ -27,6 +28,12 @@ class S2CNN(nn.Module):
             stride=self.backbone.conv1.stride,
             padding=self.backbone.conv1.padding,
             bias=False
+        )
+        self.attention_block = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, 49),
+            nn.Softmax(1)
         )
         self.bn = nn.BatchNorm2d(num_in_channels)
 
@@ -43,8 +50,16 @@ class S2CNN(nn.Module):
         x = self.backbone.layer3(x)
         x = self.backbone.layer4(x)
 
-        x = self.backbone.avgpool(x)
-        x = torch.flatten(x, 1)
+        if self.attention:
+          x_att = self.backbone.avgpool(x)
+          x_att = torch.flatten(x_att, 1)
+          w = self.attention_block(x_att)
+          w = w.view(-1, 1, 7, 7).expand_as(x)
+          x = (x * w).sum(dim=(2, 3))
+        else:
+          x = self.backbone.avgpool(x)
+          x = torch.flatten(x, 1)
+          
         return x
 
 
@@ -56,16 +71,16 @@ class S2Seq(nn.Module):
     """
     def __init__(self, cfg_model: Dict):
         super().__init__()
-        k = 2 if cfg_model['CropNet']['s2_lstm']['bi'] else 1
+        k = 2 if cfg_model['CropNet']['s2_seq']['bi'] else 1
         self.lstm = nn.LSTM(input_size=512,
-                            hidden_size=cfg_model['CropNet']['s2_lstm']['hidden_size'],
-                            num_layers=cfg_model['CropNet']['s2_lstm']['n_layers'],
-                            dropout=cfg_model['CropNet']['s2_lstm']['dropout'],
-                            bidirectional=cfg_model['CropNet']['s2_lstm']['bi'],
+                            hidden_size=cfg_model['CropNet']['s2_seq']['hidden_size'],
+                            num_layers=cfg_model['CropNet']['s2_seq']['n_layers'],
+                            dropout=cfg_model['CropNet']['s2_seq']['dropout'],
+                            bidirectional=cfg_model['CropNet']['s2_seq']['bi'],
                             batch_first=True)
         self.head = nn.Sequential(
-            nn.Linear(k * cfg_model['CropNet']['s2_lstm']['hidden_size'],
-                      cfg_model['CropNet']['s2_lstm']['n_head']),
+            nn.Linear(k * cfg_model['CropNet']['s2_seq']['hidden_size'],
+                      cfg_model['CropNet']['s2_seq']['n_head']),
             nn.ReLU()
             )
 
@@ -85,16 +100,16 @@ class ClimNet(nn.Module):
     def __init__(self, cfg_data: Dict, cfg_model: Dict):
         super().__init__()
         input_dim = len(cfg_data['data_loader']['clim_bands'])
-        k = 2 if cfg_model['CropNet']['clim_sltm']['bi'] else 1
+        k = 2 if cfg_model['CropNet']['clim_seq']['bi'] else 1
         self.lstm = nn.LSTM(input_size=input_dim,
-                            hidden_size=cfg_model['CropNet']['clim_sltm']['hidden_size'],
-                            num_layers=cfg_model['CropNet']['clim_sltm']['n_layers'],
-                            dropout=cfg_model['CropNet']['clim_sltm']['dropout'],
-                            bidirectional=cfg_model['CropNet']['clim_sltm']['bi'],
+                            hidden_size=cfg_model['CropNet']['clim_seq']['hidden_size'],
+                            num_layers=cfg_model['CropNet']['clim_seq']['n_layers'],
+                            dropout=cfg_model['CropNet']['clim_seq']['dropout'],
+                            bidirectional=cfg_model['CropNet']['clim_seq']['bi'],
                             batch_first=True)
         self.head = nn.Sequential(
-            nn.Linear(k * cfg_model['CropNet']['clim_sltm']['hidden_size'],
-                      cfg_model['CropNet']['clim_sltm']['n_head']),
+            nn.Linear(k * cfg_model['CropNet']['clim_seq']['hidden_size'],
+                      cfg_model['CropNet']['clim_seq']['n_head']),
             nn.ReLU()
             )
 
@@ -114,11 +129,11 @@ class CropNet(nn.Module):
         self.clim = ClimNet(cfg_data, cfg_model).to(device)
 
         self.n_splits = 12 // cfg_data['data_loader']['s2_avg_by']
-        n_input = cfg_model['CropNet']['s2_lstm']['n_head'] + cfg_model['CropNet']['clim_sltm']['n_head']
+        n_input = cfg_model['CropNet']['s2_seq']['n_head'] + cfg_model['CropNet']['clim_seq']['n_head']
         self.logits = nn.Sequential(
             nn.Linear(n_input, cfg_model['CropNet']['n_head']),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(cfg_model['CropNet']['dropout']),
             nn.Linear(cfg_model['CropNet']['n_head'], 1)
         )
 
