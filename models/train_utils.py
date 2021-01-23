@@ -27,13 +27,29 @@ def evaluate(model, dataloader, device, criterion):
     return np.mean(losses)
 
 
-def train_epoch(model, dataloader, device, optimizer, criterion, cfg_data):
-    p_mixup = dataloader.dataset.p_mup
-    losses = []
-    progress_bar = tqdm(range(len(dataloader)))
-    dataloader_iter = iter(dataloader)
-    for _ in progress_bar:
-        data = next(dataloader_iter)
+def train_model(model,
+                train_dataloader,
+                val_dataloader,
+                device,
+                optimizer,
+                criterion,
+                scheduler,
+                cfg_data,
+                cfg_model):
+    losses_train, losses_train_mean = [], []
+    losses_val = []
+    best_val_loss = 1e6
+    p_mixup = train_dataloader.dataset.p_mup
+
+    tr_it = iter(train_dataloader)
+    progress_bar = tqdm(range(cfg_model['train_params']['n_iters']))
+
+    for i in progress_bar:
+        try:
+            data = next(tr_it)
+        except StopIteration:
+            tr_it = iter(train_dataloader)
+            data = next(tr_it)
 
         if p_mixup > 0 and np.random.rand() < p_mixup:
             data = MixUp(cfg_data)(data)
@@ -46,73 +62,50 @@ def train_epoch(model, dataloader, device, optimizer, criterion, cfg_data):
         loss.backward()
         optimizer.step()
 
-        losses.append(loss.item())
-        progress_bar.set_description(f'loss: {loss.item()}, avg loss: {np.mean(losses)}')
+        losses_train.append(loss.item())
+        losses_train_mean.append(np.mean(losses_train[-1:-10:-1]))
+        progress_bar.set_description(f'loss: {loss.item():.5f}, avg loss: {np.mean(losses_train):.5f}')
 
-    return losses
-
-
-def train_model(model, train_dataloader, val_dataloader, device, optimizer, criterion, scheduler, cfg_data, cfg_model):
-    losses_train, losses_train_mean = [], []
-    losses_val, losses_val_mean = [], []
-    best_val_loss = 1e6
-    n_epochs = cfg_model['train_params']['n_epochs']
-
-    progress_bar = tqdm(range(n_epochs))
-    for _ in progress_bar:
-        epoch_loss_train = train_epoch(model, train_dataloader, device, optimizer, criterion, cfg_data)
-        epoch_loss_val = evaluate(model, val_dataloader, device, criterion)
+        if i % cfg_model['train_params']['n_iters_eval'] == 0:
+            loss_val = evaluate(model, val_dataloader, device, criterion)
+            losses_val.append(loss_val)
+            progress_bar.set_description(f'val_loss: {loss_val:.5f}')
 
         if scheduler:
-          if scheduler.__class__.__name__ == 'ReduceLROnPlateau':
-            scheduler.step(epoch_loss_val)
-          else:
-            scheduler.step()
+            if scheduler.__class__.__name__ == 'ReduceLROnPlateau' and losses_val:
+                scheduler.step(loss_val)
+            else:
+                scheduler.step()
 
-        train_loss = np.mean(epoch_loss_train)
-        losses_train.append(train_loss)
-        losses_train_mean.append(np.mean(losses_train[-1:-10:-1]))
-        losses_val.append(epoch_loss_val)
-        losses_val_mean.append(np.mean(losses_val[-1:-10:-1]))
-        progress_bar.set_description(f'train loss: {train_loss:.4f}, val loss: {epoch_loss_val:.4f}')
         clear_output(True)
         if cfg_model['train_params']['plot_mode']:
-            train_monitor(losses_train, losses_train_mean, losses_val, losses_val_mean)
-        
+            train_monitor(losses_train, losses_train_mean, losses_val)
+
         if cfg_model['train_params']['save_best_val'] and epoch_loss_val < best_val_loss:
-          best_val_loss = epoch_loss_val
-          checkpoint_path = cfg_model['train_params']['checkpoint_path']
-          torch.save(model.state_dict(),
-            f'{checkpoint_path}/{model.__class__.__name__}_{epoch_loss_val:.3f}')
+            best_val_loss = epoch_loss_val
+            checkpoint_path = cfg_model['train_params']['checkpoint_path']
+            torch.save(model.state_dict(),
+                       f'{checkpoint_path}/{model.__class__.__name__}_{epoch_loss_val:.3f}')
 
 
-def train_monitor(losses_train, losses_train_mean, losses_val, losses_val_mean):
-    fig, ax = plt.subplots(1, 2, figsize=(18, 6))
+def train_monitor(losses_train, losses_train_mean, losses_val):
 
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
     iters = np.arange(len(losses_train))
-    ax[0].plot(iters, losses_train, linewidth=1.5, alpha=0.6,
-               c='tab:blue', label='train loss')
-    ax[0].plot(iters, losses_val, linewidth=1.5, alpha=0.6,
-               c='tab:red', label='validation loss')
-    ax[0].plot(iters, losses_train_mean, linewidth=2, alpha=1,
-               c='tab:blue', label='avg10 train loss')
-    ax[0].plot(iters, losses_val_mean, linewidth=2, alpha=1,
-               c='tab:red', label='avg10 validation loss')
-
-    ax[1].plot(iters, losses_train, linewidth=1.5, alpha=0.6,
-               c='tab:blue', label='train loss')
-    ax[1].plot(iters, losses_val, linewidth=1.5, alpha=0.6,
-               c='tab:red', label='validation loss')
-    ax[1].plot(iters, losses_train_mean, linewidth=2, alpha=1,
-               c='tab:blue', label='avg10 train loss')
-    ax[1].plot(iters, losses_val_mean, linewidth=2, alpha=1,
-               c='tab:red', label='avg10 validation loss')
-    ax[1].set_yscale('log')
-
-    for i in [0, 1]:
+    n_vals = len(losses_val)
+    step = int(len(losses_train) / n_vals)
+    val_steps = np.linspace(step, step * n_vals, n_vals)
+    for i in range(2):
+        ax[i].plot(iters, losses_train, linewidth=1.5, alpha=0.6,
+                   c='tab:blue', label='train loss')
+        ax[i].plot(iters, losses_train_mean, linewidth=2, alpha=1,
+                   c='tab:blue', label='avg10 train loss')
+        ax[i].plot(val_steps, losses_val, linewidth=2, alpha=1,
+                   c='tab:red', label='val loss')
         ax[i].set_ylabel('MSE loss')
         ax[i].set_xlabel('Iteration')
         ax[i].legend()
         ax[i].grid()
-
+        if i == 1:
+            ax[i].set_yscale('log')
     plt.show()

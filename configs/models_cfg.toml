@@ -22,9 +22,10 @@ dropout = 0.25
   n_head = 256
 
 [train_params]
-lr = 5e-4
-n_epochs = 500
+lr = 1e-3
+n_iters= 2000
+n_iters_eval = 500
 plot_mode = true
 val_size = 0.2
-save_best_val = true
+save_best_val = false
 checkpoint_path = './models_weights'
