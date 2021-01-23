@@ -6,6 +6,8 @@ from typing import Dict
 import torch
 from torch.utils.data import Dataset
 
+from sklearn.linear_model import LinearRegression
+
 
 class BandsYieldDataset(Dataset):
     """
@@ -41,15 +43,16 @@ class BandsYieldDataset(Dataset):
         self.p_flp = cfg['augmentations']['p_flip']
         self.p_crp = cfg['augmentations']['p_crop']
         self.p_rot = cfg['augmentations']['p_rotate']
-        self.p_cto = cfg['augmentations']['p_cutout']
+        self.p_cut = cfg['augmentations']['p_cutout']
         self.p_mup = cfg['augmentations']['p_mixup']
         self.indexes = cfg['data_loader']['indexes']
+        self.interpolate = cfg['data_loader']['interpolate']
 
         self.m_groups_s2 = self.create_s2_groups(cfg)
         self.s2_out_dim = (len(self.s2_bands) + len(self.indexes)) * len(self.m_groups_s2)
         if self.indexes:
             n_grps = len(self.m_groups_s2)
-            self.band_to_idx_range = {band: (k * n_grps, (k + 1) * n_grps) for k, band in enumerate(s2_bands)}
+            self.band_to_idx_range = {band: (k * n_grps, (k + 1) * n_grps) for k, band in enumerate(self.s2_bands)}
 
     def create_s2_groups(self, cfg):
         n_groups = 12 // cfg['data_loader']['s2_avg_by']
@@ -57,16 +60,32 @@ class BandsYieldDataset(Dataset):
         groups = [list(range(i * group_size, (i + 1) * group_size)) for i in range(n_groups)]
         return groups
 
+    def interpolate_(self, band_data):
+        n_months = len(band_data)
+        x_gt_idx = np.array(range(n_months))[band_data.sum(axis=(1, 2)) != 0]
+        x_prd_idx = np.array([i for i in range(n_months) if i not in x_gt_idx])
+        for i in range(40):
+            for j in range(40):
+                model = LinearRegression()
+                x = x_gt_idx.reshape(-1, 1)
+                y = band_data[x_gt_idx, i, j].reshape(-1, 1)
+                model.fit(x, y)
+                y_prd = model.predict(x_prd_idx.reshape(-1, 1)).reshape(1, -1)
+                band_data[x_prd_idx, i, j] = y_prd
+        return band_data
+
     def filter_clouds_(self, band_data, bands_dict):
-      if self.filter_by_QA60:
-        no_clouds = bands_dict['S2_QA60'].max(axis=(1, 2)) == 0.
-      if self.filter_by_threshold:
-        s2_b2 = (bands_dict['S2_B2'] / 4000).clip(0, 1)
-        mask = (s2_b2.sum(axis=(1, 2)) / 1600) < self.filter_by_threshold
-        no_clouds = no_clouds * mask
-        no_clouds = no_clouds.reshape(12, 1, 1) * np.ones((12, 40, 40), dtype=np.float32)
-      band_data = band_data * no_clouds   
-      return band_data   
+        if self.filter_by_QA60:
+            no_clouds = bands_dict['S2_QA60'].max(axis=(1, 2)) == 0.
+        if self.filter_by_threshold:
+            s2_b2 = (bands_dict['S2_B2'] / 4000).clip(0, 1)
+            mask = (s2_b2.sum(axis=(1, 2)) / 1600) < self.filter_by_threshold
+            no_clouds = no_clouds * mask
+            no_clouds = no_clouds.reshape(12, 1, 1) * np.ones((12, 40, 40), dtype=np.float32)
+        band_data = band_data * no_clouds
+        if self.interpolate and no_clouds.min() == 0:
+            band_data = self.interpolate_(band_data)
+        return band_data
 
     def fill_s2_bands(self, bands_dict):
         i = 0
@@ -75,15 +94,15 @@ class BandsYieldDataset(Dataset):
         for band in all_bands:
             band_data = bands_dict[band]
             if self.filter_clouds:
-              band_data = self.filter_clouds_(band_data, bands_dict)
+                band_data = self.filter_clouds_(band_data, bands_dict)
             for group in self.m_groups_s2:
                 n_clean = (band_data[group].max(axis=(1, 2)) != 0.).sum()
                 n_clean = len(group) if n_clean == 0 else n_clean
                 mean_bands = band_data[group].sum(axis=0) / n_clean
                 # scale to [0, 1]
                 if band not in self.indexes:
-                  band_min, band_max = self.bands_range[band]
-                  mean_bands = (mean_bands - band_min) / (band_max - band_min)
+                    band_min, band_max = self.bands_range[band]
+                    mean_bands = (mean_bands - band_min) / (band_max - band_min)
                 bands_to_fill[i, :, :] = mean_bands.clip(0, 1)
                 i += 1
         return bands_to_fill
@@ -101,7 +120,7 @@ class BandsYieldDataset(Dataset):
 
     def apply_augmentations(self, sample):
         aug = np.random.choice(['none', 'flip', 'crop', 'rotate', 'cutout'],
-                               p=[self.p_aug, self.p_flp, self.p_crp, self.p_rot, self.p_cto])
+                               p=[self.p_aug, self.p_flp, self.p_crp, self.p_rot, self.p_cut])
         if aug == 'none':
             return sample
         else:
@@ -121,10 +140,9 @@ class BandsYieldDataset(Dataset):
             elif index_name == 'EVI2':
                 band_8 = (bands_dict['S2_B8'] / 4095).clip(0, 1)
                 band_4 = (bands_dict['S2_B4'] / 4095).clip(0, 1)
-                band_2 = (bands_dict['S2_B2'] / 4095).clip(0, 1)
                 index_val = 2.5*(band_8 - band_4) / (band_8 + 2.4*band_4 + 1)
             else:
-                raise NotImplementedError('Such index not supported, valid indexes are NDVI, EVI2, NDWI.')
+                raise NotImplementedError('Such index not supported, valid indexes are NDVI, NDWI, EVI2.')
 
             bands_dict[index_name] = index_val
 
