@@ -1,18 +1,20 @@
 [CropNet]
 n_head = 512
-dropout = 0.2
+dropout = 0.25
 
   [CropNet.s2_cnn]
   bn_first = false
+  attention = false
+  n_out = 256
 
-  [CropNet.s2_lstm]
+  [CropNet.s2_seq]
   hidden_size = 512
   n_layers = 1
   dropout = 0
   bi = false
   n_head = 256
 
-  [CropNet.clim_sltm]
+  [CropNet.clim_seq]
   hidden_size = 512
   n_layers = 1
   dropout = 0
@@ -20,9 +22,9 @@ dropout = 0.2
   n_head = 256
 
 [train_params]
-lr = 3e-4
-n_epochs = 200
+lr = 5e-4
+n_epochs = 500
 plot_mode = true
 val_size = 0.2
-save_best_val = false
+save_best_val = true
 checkpoint_path = './models_weights'

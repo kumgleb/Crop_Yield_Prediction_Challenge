@@ -5,22 +5,24 @@ s2_band_size = [224, 224]
 [data_loader]
 qualities = [2, 3]
 s2_avg_by = 1
-batch_size = 32
+batch_size = 8
 shuffle = true
 num_workers = 0
+interpolate = false
 filter_clouds = true
 filter_by_QA60 = true
 filter_by_threshold = 0.31
 indexes = []
 s2_bands = ['S2_B2', 'S2_B3', 'S2_B4']
-clim_bands = ['CLIM_aet', 'CLIM_def', 'CLIM_pdsi', 'CLIM_pet', 'CLIM_pr',
-              'CLIM_ro', 'CLIM_soil', 'CLIM_srad', 'CLIM_tmmn', 'CLIM_tmmx',
+clim_bands = ['CLIM_aet', 'CLIM_def', 'CLIM_pdsi',
+              'CLIM_pet', 'CLIM_pr', 'CLIM_ro',
+              'CLIM_soil', 'CLIM_srad', 'CLIM_tmmn', 'CLIM_tmmx',
               'CLIM_vap', 'CLIM_vpd', 'CLIM_vs']
 
 [augmentations]
-p_aug = 1
-p_flip = 0
-p_crop = 0 
+p_aug = 0.5
+p_flip = 0.5
+p_crop = 0
 p_rotate = 0
 p_cutout = 0
 p_mixup = 0.5
@@ -30,11 +32,11 @@ p_mixup = 0.5
   degrees = 10
 
   [augmentations.crop]
-  pad = 10
+  pad = 25
 
   [augmentations.cutout]
   n_cuts_max = 3
-  cut_size = 5
+  cut_size = 25
 
   [augmentations.mixup]
   alpha = 0.4
