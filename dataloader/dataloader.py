@@ -5,7 +5,6 @@ from typing import Dict
 
 import torch
 from torch.utils.data import Dataset
-
 from sklearn.linear_model import LinearRegression
 
 
@@ -24,7 +23,7 @@ class BandsYieldDataset(Dataset):
                  cfg: Dict):
 
         self.base_df = pd.read_csv(csv_file_path)
-        self.mode = 'train' if 'Quality' in self.base_df.columns else 'eval'
+        self.mode = 'train' if 'Yield' in self.base_df.columns else 'eval'
         if self.mode == 'train':
             qualities = cfg['data_loader']['qualities']
             self.base_df = self.base_df.query(f'Quality in {qualities}')
@@ -34,6 +33,8 @@ class BandsYieldDataset(Dataset):
         self.augmentations = augmentations
         self.s2_bands = cfg['data_loader']['s2_bands']
         self.clim_bands = cfg['data_loader']['clim_bands']
+        self.soil = cfg['data_loader']['soil']
+        self.log_yields = cfg['data_loader']['log_yields']
         self.all_bands_names = list(bands_cfg['bands_min_max'].keys())
         self.bands_range = bands_cfg['bands_min_max']
         self.filter_clouds = cfg['data_loader']['filter_clouds']
@@ -107,16 +108,19 @@ class BandsYieldDataset(Dataset):
                 i += 1
         return bands_to_fill
 
-    def fill_clim_bands(self, bands_dict):
-        bands_to_fill = np.empty((12, len(self.clim_bands)))
-        for k, band in enumerate(self.clim_bands):
-            band_min, band_max = self.bands_range[band]
-            # mean over spatial dimension
-            retrieved_bands = np.mean(bands_dict[band], axis=(1, 2))
-            # scale to [0, 1]
-            retrieved_bands = (retrieved_bands - band_min) / (band_max - band_min)
-            bands_to_fill[:, k] = retrieved_bands.clip(0, 1)
+    def fill_clim_bands(self, field_id):
+        bands_to_fill = np.zeros((12, len(self.clim_bands)))
+        data = self.base_df[self.base_df['Field_ID'] == field_id]
+        for b, clim_band in enumerate(self.clim_bands):
+            for m in range(11):
+                band_name = f'climate_{m+1}_{clim_band}'
+                bands_to_fill[m, b] = data[band_name].values
         return bands_to_fill
+
+    def fill_soil_data(self, field_id):
+        data = self.base_df[self.base_df['Field_ID'] == field_id]
+        soil_data = data[self.soil].values[0]
+        return soil_data
 
     def apply_augmentations(self, sample):
         aug = np.random.choice(['none', 'flip', 'crop', 'rotate', 'cutout'],
@@ -154,6 +158,7 @@ class BandsYieldDataset(Dataset):
     def __getitem__(self, idx):
 
         field_id = self.base_df.iloc[idx]['Field_ID']
+        year = self.base_df.iloc[idx]['Year']
         path_to_file = os.path.join(self.data_path, f'{field_id}.npy')
         bands = np.load(path_to_file)
 
@@ -166,18 +171,24 @@ class BandsYieldDataset(Dataset):
             bands_dict = self.add_indexes(bands_dict)
 
         s2_bands_grouped = self.fill_s2_bands(bands_dict)
-        clim_bands = self.fill_clim_bands(bands_dict)
-
+        clim_bands = self.fill_clim_bands(field_id)
+        soil_data = self.fill_soil_data(field_id)
         yields = self.base_df.iloc[idx]['Yield'] if self.mode == 'train' else 0
 
         # to tensors
         s2_bands_grouped = torch.tensor(s2_bands_grouped, dtype=torch.float32)
         clim_bands = torch.tensor(clim_bands, dtype=torch.float32)
+        soil_data = torch.tensor(soil_data, dtype=torch.float32)
+        year = torch.tensor(year, dtype=torch.float32)
+        if self.log_yields:
+            yields = np.log(yields)
         yields = torch.tensor(yields, dtype=torch.float32)
 
         sample = {
             's2_bands': s2_bands_grouped,
             'clim_bands': clim_bands,
+            'soil_data': soil_data,
+            'year': year,
             'yield': yields
         }
 
