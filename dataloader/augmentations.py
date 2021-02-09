@@ -19,20 +19,16 @@ class Flip(object):
 class Rotate(object):
     def __init__(self, cfg):
         self.pad = cfg['augmentations']['rotate']['pad']
+        self.size = cfg['transforms']['s2_band_size']
         output_size = cfg['transforms']['s2_band_size'][0] + self.pad
         self.scale = transforms.Resize((output_size, output_size))
         self.rand_rot = transforms.RandomRotation(degrees=cfg['augmentations']['rotate']['degrees'])
-
-    def crop(self, sample):
-        crop_size = self.pad // 2
-        return sample[:, crop_size:-crop_size, crop_size:-crop_size]
 
     def __call__(self, sample):
         s2_bands = sample['s2_bands']
         s2_bands = self.scale(s2_bands)
         s2_bands = self.rand_rot(s2_bands)
-        s2_bands = self.crop(s2_bands)
-        sample['s2_bands'] = s2_bands
+        sample['s2_bands'] = s2_bands[:, :self.size[0], :self.size[1]]
         return sample
 
 
@@ -60,7 +56,7 @@ class CutOut(object):
 
     def __call__(self, sample):
         s2_bands = sample['s2_bands']
-        _, w, h = s2_bands.shape
+        w, h = s2_bands.shape[-2], s2_bands.shape[-1]
         n_cuts = np.random.randint(1, self.n_cuts_max)
         crop_coords = np.random.randint(0, max(w, h), size=(n_cuts, 2))
         for cx, cy in crop_coords:
