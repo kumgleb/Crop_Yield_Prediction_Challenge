@@ -10,7 +10,9 @@ def forward(model, data, criterion, device):
     yields = data['yield'].to(device)
     s2_bands = data['s2_bands'].to(device)
     clim_bands = data['clim_bands'].to(device)
-    prediction = model(s2_bands, clim_bands).reshape(yields.shape)
+    soil = data['soil_data'].to(device)
+    year = data['year'].to(device)
+    prediction = model(s2_bands, clim_bands, soil, year).reshape(yields.shape)
     loss = criterion(yields, prediction)
     return loss, prediction
 
@@ -81,11 +83,11 @@ def train_model(model,
         if cfg_model['train_params']['plot_mode']:
             train_monitor(losses_train, losses_train_mean, losses_val)
 
-        if cfg_model['train_params']['save_best_val'] and epoch_loss_val < best_val_loss:
-            best_val_loss = epoch_loss_val
+        if cfg_model['train_params']['save_best_val'] and loss_val < best_val_loss:
+            best_val_loss = loss_val
             checkpoint_path = cfg_model['train_params']['checkpoint_path']
             torch.save(model.state_dict(),
-                       f'{checkpoint_path}/{model.__class__.__name__}_{epoch_loss_val:.3f}')
+                       f'{checkpoint_path}/{model.__class__.__name__}_{loss_val:.3f}')
 
 
 def train_monitor(losses_train, losses_train_mean, losses_val):
@@ -105,7 +107,7 @@ def train_monitor(losses_train, losses_train_mean, losses_val):
         ax[i].set_ylabel('MSE loss')
         ax[i].set_xlabel('Iteration')
         ax[i].legend()
-        ax[i].grid()
-        if i == 1:
-            ax[i].set_yscale('log')
+        ax[i].grid()          
+    ax[0].set_ylim([0.8*np.min(losses_train[-1:-100:-1]), 1.2*np.max(losses_train[-1:-100:-1])])    
+    ax[1].set_yscale('log')    
     plt.show()
