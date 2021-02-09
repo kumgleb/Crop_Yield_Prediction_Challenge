@@ -1,0 +1,50 @@
+[transforms]
+s2_transforms = ['resize']
+s2_band_size = [224, 224]
+
+[data_loader]
+qualities = [2, 3]
+s2_avg_by = 4
+batch_size = 32
+shuffle = true
+num_workers = 0
+interpolate = false
+filter_clouds = true
+filter_by_QA60 = true
+filter_by_threshold = 0.31
+log_yields = false
+
+indexes = ['NDVI']
+s2_bands = ['S2_B2', 'S2_B3', 'S2_B4', 'S2_B8']
+clim_bands = ['aet', 'def', 'pdsi',
+              'pet', 'pr', 'ro',
+              'soil', 'srad', 'tmmn', 'tmmx',
+              'vap', 'vpd', 'vs']
+soil = ['soil_bdod_5-15cm_mean', 'soil_cec_5-15cm_mean',
+        'soil_cfvo_5-15cm_mean', 'soil_clay_5-15cm_mean',
+        'soil_nitrogen_5-15cm_mean', 'soil_ocd_5-15cm_mean',
+        'soil_ocs_0-30cm_mean', 'soil_phh2o_5-15cm_mean',
+        'soil_sand_5-15cm_mean', 'soil_silt_5-15cm_mean',
+        'soil_soc_5-15cm_mean']
+
+[augmentations]
+p_aug = 0.5
+p_flip = 0.5
+p_crop = 0
+p_rotate = 0
+p_cutout = 0
+p_mixup = 0.4
+
+  [augmentations.rotate]
+  pad = 5
+  degrees = 10
+
+  [augmentations.crop]
+  pad = 25
+
+  [augmentations.cutout]
+  n_cuts_max = 3
+  cut_size = 25
+
+  [augmentations.mixup]
+  alpha = 0.4
